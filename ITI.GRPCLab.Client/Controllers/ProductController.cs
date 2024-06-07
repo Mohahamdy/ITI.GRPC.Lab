@@ -1,4 +1,5 @@
-﻿using Grpc.Net.Client;
+﻿using Grpc.Core;
+using Grpc.Net.Client;
 using ITI.GRPCLab.Server.Protos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,13 +14,24 @@ namespace ITI.GRPCLab.Client.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
+        private const string ApiKey = "AIzaSyD7Q6Q6-4";
+
         [HttpPost]
         public async Task<ActionResult> AddProduct(Product product)
         {
-            var channel = GrpcChannel.ForAddress("https://localhost:7080");
+            var channel = GrpcChannel.ForAddress("https://localhost:7080",
+                new GrpcChannelOptions { Credentials = ChannelCredentials.SecureSsl});
+
+            var callCredentials = CallCredentials.FromInterceptor((context, metadata) =>
+            {
+                metadata.Add("x-api-key", ApiKey);
+                return Task.CompletedTask;
+            });
+
             var client = new InventoryServiceClient(channel);
 
-            var IsExisted = await client.GetProductByIdAsync(new Id { Id_= product.Id});
+            var IsExisted = await client.GetProductByIdAsync(new Id { Id_ = product.Id }
+            ,new CallOptions(credentials: callCredentials));
 
             if (IsExisted.IsExistd == false)
             {
@@ -57,10 +69,18 @@ namespace ITI.GRPCLab.Client.Controllers
         {
             List<ProductToAdd> productToAdds = new List<ProductToAdd>();
 
-            var channel = GrpcChannel.ForAddress("https://localhost:7080");
+            var channel = GrpcChannel.ForAddress("https://localhost:7080",
+                new GrpcChannelOptions { Credentials = ChannelCredentials.SecureSsl });
+
+            var callCredentials = CallCredentials.FromInterceptor((context, metadata) =>
+            {
+                metadata.Add("x-api-key", ApiKey);
+                return Task.CompletedTask;
+            });
+
             var client = new InventoryServiceClient(channel);
 
-            var call = client.GetProductReport(new Google.Protobuf.WellKnownTypes.Empty());
+            var call = client.GetProductReport(new Google.Protobuf.WellKnownTypes.Empty(),new CallOptions(credentials: callCredentials));
 
             while(await call.ResponseStream.MoveNext(CancellationToken.None))
             {
